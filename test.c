@@ -9,6 +9,7 @@ typedef struct chunk {
 } chunk;
 
 chunk* head_chunk = NULL; // 메인 청크 (여기서 할당이 이루어짐)
+chunk* allocated_chunk_head = NULL;
 
 int myalloc(int request_size);
 void myfree(int start_addr, int ret_size);
@@ -83,6 +84,7 @@ int myalloc(int request_size) {
         return -1;
     }
     
+    //16바이트 단위 할당
     if (request_size % 16 != 0) {
         int var = (request_size / 16) + 1;
         request_size = 16 * var;
@@ -295,7 +297,7 @@ void print_freed_chunks() {
     printf("\n");
 }
 
-//TODO: 뒤 할당(기존 앞) ["16바이트 단위 할당", "size 없이 free", "양방향 연결 리스트"]
+//TODO: 뒤 할당(기존 앞) ["size 없이 free", "양방향 연결 리스트"]
 //TODO: ["이전(다음: 필요할 경우) 주소, 사이즈 저장 공간 마련", "실제 데이터 저장 가능"]
 
 //보류
@@ -340,7 +342,7 @@ void myfree_seq(int start_addr, int ret_size) {
     }
 }
 
-//할당된 청크 출력
+//할당된 청크 출력(할당 청크 head가 없는 경우)
 void print_allocated_chunks(int total_size) {
     
     int count = 0;
