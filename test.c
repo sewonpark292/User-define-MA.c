@@ -45,6 +45,7 @@ int main(void) {
     int d = myalloc(40);  // 48바이트 할당 (start=64)
     int e = myalloc(20);  // 32바이트 할당 (start=112)
     print_freed_chunks();
+    print_allocated_chunks_with_head(1600);
 
 
     myfree_addr(a);   
@@ -290,7 +291,7 @@ void print_freed_chunks() {
     printf("\n");
 }
 
-//TODO: 뒤 할당(기존 앞) ["size 없이 free", "양방향 연결 리스트"]
+//TODO: 뒤 할당(기존 앞) ["양방향 연결 리스트"]
 //TODO: ["이전(다음: 필요할 경우) 주소, 청크 자체에 사이즈 저장 공간 마련(실제 메모리 or 리스트?)", "실제 데이터 저장 가능(pointer?)"]
 
 //보류: 마지막 노드와 병합이 이루어지지 않는 것 같음
@@ -377,18 +378,30 @@ int insert_allocated_chunk(int start_addr, int request_size) {
     allocated_chunk->start = start_addr; //고유한 주소임.
     allocated_chunk->size = request_size;
     allocated_chunk_head = allocated_chunk;
+    return 0;
 
     ////////맨 뒤에 넣는 경우
+    //allocated_chunk->start = start_addr;
+    //allocated_chunk->size = request_size;
+    //allocated_chunk->next = NULL; //고정
+
     //chunk* prev_chunk = NULL;
     //chunk* curr_chunk = allocated_chunk_head;
+
     //while (curr_chunk != NULL) {
     //    prev_chunk = curr_chunk;
     //    curr_chunk = curr_chunk->next;
     //}
-    //prev_chunk->next = allocated_chunk;
-    //allocated_chunk->next = curr_chunk;
-    
-    return 0;
+
+    ////아무것도 없는 경우
+    //if (prev_chunk == NULL) {
+    //    allocated_chunk_head = allocated_chunk;
+    //    return 0;
+    //}
+    //else {
+    //    prev_chunk->next = allocated_chunk;
+    //    return 0;
+    //}
 }
 
 //고유한 start_addr 값으로 사이즈 없이 청크 탐색 후 주소 반환
@@ -467,3 +480,4 @@ int free_from_alloc(chunk* be_freed) {
         return 0;
     }
 }
+
