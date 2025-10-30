@@ -22,7 +22,8 @@ void print_allocated_chunks(int total_size);
 int insert_allocated_chunk(int start_addr, int request_size);
 chunk* search_chunk(int start_addr);
 void myfree_addr(int start_addr);
-
+void print_allocated_chunks_with_head(int total_size);
+int free_from_alloc(chunk* be_freed);
 
 chunk* create_my_chunk(int chunk_size) {
     chunk* head_chunk = malloc(sizeof(chunk));
@@ -48,14 +49,23 @@ int main(void) {
 
     myfree_addr(a);   
     print_freed_chunks();
+    print_allocated_chunks_with_head(1600);
+
     myfree_addr(b);   
     print_freed_chunks();
+    print_allocated_chunks_with_head(1600);
+
     myfree_addr(c); 
     print_freed_chunks();
+    print_allocated_chunks_with_head(1600);
+
     myfree_addr(d);   
     print_freed_chunks();
+    print_allocated_chunks_with_head(1600);
+
     myfree_addr(e);   
     print_freed_chunks();
+    print_allocated_chunks_with_head(1600);
 
     return 0;
 }
@@ -223,11 +233,13 @@ int search_best_fit(int request_size) {
     }
 }
 
+//해제된 청크를 병합
 void myfree(int start_addr, int ret_size) {
     if (ret_size <= 0) {
         printf("Invalid argument.\n");
         return;
     }
+
     chunk* temp_chunk = head_chunk;
     chunk* free_chunk = malloc(sizeof(chunk));
     chunk* prev_chunk = NULL; // 지나가면서 병합할 청크가 있을 때 사용
@@ -247,13 +259,6 @@ void myfree(int start_addr, int ret_size) {
         head_chunk = free_chunk;
         free_chunk->next = temp_chunk;
     }
-
-    //그냥 끝에 도달한 경우 
-    else if (temp_chunk == NULL && prev_chunk != NULL) {
-        prev_chunk->next = free_chunk;
-        free_chunk->next = temp_chunk; //NULL
-    }
-
     else {
         prev_chunk->next = free_chunk;
         free_chunk->next = temp_chunk;
@@ -277,7 +282,7 @@ void myfree(int start_addr, int ret_size) {
 void print_freed_chunks() {
     chunk* temp_chunk = head_chunk;
     int i = 0;
-
+    printf("====Freed====\n");
     while (temp_chunk != NULL) {
         printf("%d chunk: (start: %d, size: %d)\n", i++, temp_chunk->start, temp_chunk->size);
         temp_chunk = temp_chunk->next;
@@ -360,6 +365,7 @@ void print_allocated_chunks(int total_size) {
     if (!count) printf("There isn't allocated chunks.\n");
 }
 
+//할당된 청크를 관리하기 위한 head 생성 이후 함수 정의
 //할당된 청크를 관리하는 연결리스트 생성
 int insert_allocated_chunk(int start_addr, int request_size) {
 
@@ -401,11 +407,11 @@ chunk* search_chunk(int start_addr) {
         curr_chunk = curr_chunk->next;
     }
 
-    printf("That chunk has not exists.\n");
+    printf("The chunk has not exists.\n");
     return NULL;
 }
 
-//사이즈 없이 알아서 찾게(search_chunk 호출)
+//사이즈 없이 알아서 찾게(search_chunk , myfree 호출)
 void myfree_addr(int start_addr) {
     
     chunk* be_freed = search_chunk(start_addr);
@@ -417,4 +423,47 @@ void myfree_addr(int start_addr) {
 
     myfree(be_freed->start, be_freed->size);
     //myfree(start_addr, size);
+
+    free_from_alloc(be_freed);
+}
+
+//할당된 청크 출력(할당 청크 head 있는 경우)
+void print_allocated_chunks_with_head(int total_size) {
+
+    chunk* temp_chunk = allocated_chunk_head;
+    int count = 0;
+    printf("====Allocated====\n");
+    while (temp_chunk != NULL) {
+        printf("%d used: %d ~ %d\n", count, temp_chunk->start, temp_chunk->start + temp_chunk->size);
+        temp_chunk = temp_chunk->next;
+        count++;
+    }
+    printf("\n");
+}
+
+//search_chunk를 int 반환형 함수로 만들고 본 함수를 삭제해도 좋으나 원론적으로..
+int free_from_alloc(chunk* be_freed) {
+    
+    //be_freed가 이전 주소와 다음 주소를 가지고 있으면 좋을 듯함
+    chunk* prev_chunk = NULL;
+    chunk* curr_chunk = allocated_chunk_head;
+
+    while (curr_chunk != NULL && curr_chunk->start != be_freed->start) {
+        prev_chunk = curr_chunk;
+        curr_chunk = curr_chunk->next;
+    }
+    if (curr_chunk == NULL) {
+        printf("free from alloc error.\n");
+        return -1;
+    }
+    else if (prev_chunk == NULL) {
+        allocated_chunk_head = curr_chunk->next;
+        free(curr_chunk);
+        return 0;
+    }
+    else {
+        prev_chunk->next = curr_chunk->next;
+        free(curr_chunk);
+        return 0;
+    }
 }
