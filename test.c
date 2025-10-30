@@ -19,6 +19,10 @@ int search_exact_fit(int request_size);
 int search_first_fit(int request_size);
 int search_best_fit(int request_size);
 void print_allocated_chunks(int total_size);
+int insert_allocated_chunk(int start_addr, int request_size);
+chunk* search_chunk(int start_addr);
+void myfree_addr(int start_addr);
+
 
 chunk* create_my_chunk(int chunk_size) {
     chunk* head_chunk = malloc(sizeof(chunk));
@@ -33,46 +37,25 @@ chunk* create_my_chunk(int chunk_size) {
 
 int main(void) {
 
-    head_chunk = create_my_chunk(100);
-    printf("--- Initial State (size=100) ---\n");
+    head_chunk = create_my_chunk(1600);
+    int a = myalloc(10);  // 16바이트 할당 (start=0)
+    int b = myalloc(20);  // 32바이트 할당 (start=16)
+    int c = myalloc(10);  // 16바이트 할당 (start=48)
+    int d = myalloc(40);  // 48바이트 할당 (start=64)
+    int e = myalloc(20);  // 32바이트 할당 (start=112)
     print_freed_chunks();
 
-    // 1. 테스트용 빈 공간 생성 (10, 30, 20 크기 순서로)
-    int a = myalloc(10); // [0, 10)
-    int b = myalloc(10); // [10, 20)
-    int c = myalloc(30); // [20, 50)
-    int d = myalloc(10); // [50, 60)
-    int e = myalloc(20); // [60, 80)
-    // 남은 공간: (start=80, size=20)
 
-    printf("--- After allocs, Free list ---\n");
-    print_freed_chunks(); // (80, 20) 하나만 있어야 함
-
-    myfree(a, 10); // (0, 10) free
-    myfree(c, 30); // (20, 30) free
-    myfree(e, 20); // (60, 80) free
-
-    // myfree가 올바르게 동작했다면, 빈 공간 리스트는 주소 순서대로:
-    // (0, 10) -> (20, 30) -> (60, 20) -> (80, 20)
-    printf("--- Free list state (10, 30, 20, 20) ---\n");
+    myfree_addr(a);   
     print_freed_chunks();
-
-    // --- 2. Best-Fit 테스트 (Exact-Fit 최적화 테스트) ---
-    printf("--- Allocating 10 (Testing Exact-Fit optimization) ---\n");
-    int f = myalloc(10); // (0, 10) 청크를 할당해야 함 (start=0)
-    printf("Allocated at: %d\n", f);
-    // 남은 리스트: (20, 30) -> (60, 20) -> (80, 20)
+    myfree_addr(b);   
     print_freed_chunks();
-
-    // --- 3. Best-Fit 테스트 (Best-Fit 탐색 테스트) ---
-    printf("--- Allocating 15 (Testing Best-Fit search) ---\n");
-    int g = myalloc(15); // (60, 20) 청크를 할당해야 함 (start=60, diff=5)
-    printf("Allocated at: %d\n", g);
-    // (20, 30) -> (60, 5) -> (80, 20)
+    myfree_addr(c); 
     print_freed_chunks();
-
-    printf("--- Allocated chunks ---\n");
-    print_allocated_chunks(100);
+    myfree_addr(d);   
+    print_freed_chunks();
+    myfree_addr(e);   
+    print_freed_chunks();
 
     return 0;
 }
@@ -92,19 +75,24 @@ int myalloc(int request_size) {
 
     int start_addr = 0;
 
+    //best-fit 우선 탐색
     if ((start_addr = search_best_fit(request_size)) != -1) {
+        if (insert_allocated_chunk(start_addr, request_size) == -1) {
+            printf("Failed insert allocated chunk to list.\n");
+            return -1;
+        }
         return start_addr;
     }
 
-    ////best-fit 우선 탐색
+    ////////exact-fit 우선 탐색
     //if ((start_addr = search_exact_fit(request_size)) != -1) {
     //    return start_addr;
     //}
-    ////first-fit 탐색
+    ////////first-fit 탐색
     //else if ((start_addr = search_first_fit(request_size)) != -1) {
     //    return start_addr;
     //}
-    ////모든 탐색에서 공간을 못 찾음.
+    //모든 탐색에서 공간을 못 찾음.
     else {
         printf("space not enough.\n\n");
         return -1;
@@ -298,9 +286,9 @@ void print_freed_chunks() {
 }
 
 //TODO: 뒤 할당(기존 앞) ["size 없이 free", "양방향 연결 리스트"]
-//TODO: ["이전(다음: 필요할 경우) 주소, 사이즈 저장 공간 마련", "실제 데이터 저장 가능"]
+//TODO: ["이전(다음: 필요할 경우) 주소, 청크 자체에 사이즈 저장 공간 마련(실제 메모리 or 리스트?)", "실제 데이터 저장 가능(pointer?)"]
 
-//보류
+//보류: 마지막 노드와 병합이 이루어지지 않는 것 같음
 void myfree_seq(int start_addr, int ret_size) {
     if (ret_size <= 0) {
         printf("Invalid argument.\n");
@@ -372,3 +360,59 @@ void print_allocated_chunks(int total_size) {
     if (!count) printf("There isn't allocated chunks.\n");
 }
 
+//할당된 청크를 관리하는 연결리스트 생성
+int insert_allocated_chunk(int start_addr, int request_size) {
+
+    chunk* allocated_chunk = malloc(sizeof(chunk));
+    if (allocated_chunk == NULL) return -1;
+
+    //맨 앞에 넣는 경우
+    allocated_chunk->next = allocated_chunk_head; //처음은 NULL
+    allocated_chunk->start = start_addr; //고유한 주소임.
+    allocated_chunk->size = request_size;
+    allocated_chunk_head = allocated_chunk;
+
+    ////////맨 뒤에 넣는 경우
+    //chunk* prev_chunk = NULL;
+    //chunk* curr_chunk = allocated_chunk_head;
+    //while (curr_chunk != NULL) {
+    //    prev_chunk = curr_chunk;
+    //    curr_chunk = curr_chunk->next;
+    //}
+    //prev_chunk->next = allocated_chunk;
+    //allocated_chunk->next = curr_chunk;
+    
+    return 0;
+}
+
+//고유한 start_addr 값으로 사이즈 없이 청크 탐색 후 주소 반환
+chunk* search_chunk(int start_addr) {
+
+    chunk* curr_chunk = allocated_chunk_head;
+    while (curr_chunk != NULL) {
+        
+        //1. 청크 포인터를 반환하는 방법 (Ret: chunk*)
+        //2. 사이즈를 반환하는 방법 (Ret: int)
+        if (curr_chunk->start == start_addr) {
+            return curr_chunk;
+            //return curr_chunk->size;
+        }
+    }
+
+    printf("That chunk has not exists.\n");
+    return NULL;
+}
+
+//사이즈 없이 알아서 찾게(search_chunk 호출)
+void myfree_addr(int start_addr) {
+    
+    chunk* be_freed = search_chunk(start_addr);
+    if (be_freed == NULL) {
+        printf("be_freed NULL pointer exception.\n");
+        return;
+    }
+    //int size = search_chunk(start_addr);
+
+    myfree(be_freed->start, be_freed->size);
+    //myfree(start_addr, size);
+}
