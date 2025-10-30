@@ -397,6 +397,8 @@ chunk* search_chunk(int start_addr) {
             return curr_chunk;
             //return curr_chunk->size;
         }
+
+        curr_chunk = curr_chunk->next;
     }
 
     printf("That chunk has not exists.\n");
